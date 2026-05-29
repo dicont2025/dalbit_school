@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>달빛어린이병원 입지 최적화 대시보드</title>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=36b46fa185bdeb9fbda42aefee1090f6&autoload=false"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@font-face{font-family:'GMS';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');font-weight:300;}
+@font-face{font-family:'GMS';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');font-weight:500;}
+@font-face{font-family:'GMS';src:url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');font-weight:700;}
+
+:root{
+  --N:#1B2E5E;--N2:#0F1F42;--N3:#253E78;
+  --S:#4FC3F7;--SL:#E1F5FE;--SD:#0288D1;
+  --W:#fff;--BG:#F2F6FC;--BD:#D4DFF0;--TX:#1B2E5E;--MT:#8A9BBF;
+  --GN:#22C55E;--AM:#F59E0B;
+  --f:'GMS','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--f);background:var(--BG);color:var(--TX);display:flex;flex-direction:column;font-size:14px;}
+
+/* ── 헤더 ── */
+.hdr{background:var(--N2);padding:11px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.3);}
+.hdr-logo{width:40px;height:40px;background:linear-gradient(135deg,var(--S),var(--SD));border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hdr-logo svg{width:22px;height:22px;fill:white;}
+.hdr-tx h1{font-size:16px;font-weight:700;color:white;letter-spacing:-.3px;line-height:1.3;}
+.hdr-tx p{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;font-weight:300;}
+.hdr-rt{margin-left:auto;display:flex;gap:8px;}
+.hdr-chip{padding:5px 12px;background:rgba(79,195,247,.12);border:1px solid rgba(79,195,247,.25);border-radius:20px;font-size:12px;color:var(--S);font-weight:500;white-space:nowrap;}
+
+/* ── KPI ── */
+.kpi-row{background:var(--N);padding:10px 16px;display:flex;gap:10px;flex-shrink:0;}
+.kpi{flex:1;min-width:0;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .22s;position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--S);transform:scaleX(0);transition:transform .22s;transform-origin:left;}
+.kpi:hover{background:rgba(255,255,255,.13);border-color:rgba(79,195,247,.4);}
+.kpi.on{background:rgba(79,195,247,.15);border-color:rgba(79,195,247,.5);}
+.kpi.on::after,.kpi:hover::after{transform:scaleX(1);}
+.kpi-ico{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.kpi-ico svg{width:22px;height:22px;}
+.kpi-lbl{font-size:11px;color:rgba(255,255,255,.52);font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpi-val{font-size:21px;font-weight:700;color:white;line-height:1.2;margin-top:2px;white-space:nowrap;}
+.kpi-val .u{font-size:12px;font-weight:500;margin-left:2px;color:var(--S);}
+.kpi-val .dim{font-size:15px;opacity:.45;margin-right:3px;}
+.kpi-val .arr{font-size:14px;opacity:.6;margin:0 3px;}
+.kpi-sub{font-size:10.5px;color:rgba(255,255,255,.35);margin-top:2px;font-weight:300;}
+
+/* ── 메인 ── */
+.main{display:flex;flex:1;overflow:hidden;position:relative;}
+
+/* ── 지도 ── */
+.map-area{flex:1;position:relative;overflow:hidden;}
+#map{width:100%;height:100%;}
+.mc{position:absolute;top:10px;left:10px;z-index:5;display:flex;flex-direction:column;gap:6px;}
+.mc-btn{background:white;border:1.5px solid var(--BD);border-radius:8px;padding:8px 14px;font-family:var(--f);font-size:13px;font-weight:500;color:var(--N);cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);transition:all .18s;white-space:nowrap;}
+.mc-btn svg{width:15px;height:15px;flex-shrink:0;}
+.mc-btn:hover{border-color:var(--S);color:var(--SD);}
+.mc-btn.on{background:var(--SL);border-color:var(--SD);color:var(--SD);}
+.map-leg{position:absolute;bottom:12px;left:10px;z-index:5;background:white;border-radius:10px;padding:10px 14px;box-shadow:0 2px 8px rgba(0,0,0,.1);font-size:13px;display:flex;flex-direction:column;gap:8px;}
+.leg-t{font-size:10px;font-weight:700;color:var(--MT);letter-spacing:.5px;text-transform:uppercase;}
+.leg-r{display:flex;align-items:center;gap:9px;font-weight:500;color:var(--TX);}
+.leg-pin{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+.leg-buf-ic{width:14px;height:14px;border-radius:50%;border:2px solid var(--S);background:rgba(79,195,247,.15);flex-shrink:0;}
+
+/* ── 사이드 패널 ── */
+.side{width:370px;flex-shrink:0;background:white;border-left:1px solid var(--BD);display:flex;flex-direction:column;overflow:hidden;transition:width .28s;}
+.side-hd{padding:13px 16px 11px;border-bottom:2px solid var(--BD);display:flex;align-items:flex-start;gap:10px;flex-shrink:0;transition:border-color .22s;}
+.side-hd-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .22s;}
+.side-hd-ico svg{width:18px;height:18px;}
+.side-ttl{font-size:14px;font-weight:700;color:var(--N);line-height:1.3;}
+.side-sub{font-size:11px;color:var(--MT);margin-top:3px;font-weight:300;}
+.side-body{flex:1;overflow-y:auto;overflow-x:hidden;}
+.side-body::-webkit-scrollbar{width:4px;}
+.side-body::-webkit-scrollbar-thumb{background:var(--BD);border-radius:4px;}
+
+/* 패널 내 검색 */
+.ps{padding:10px 12px;border-bottom:1px solid var(--BD);position:sticky;top:0;background:white;z-index:3;}
+.ps-wrap{position:relative;}
+.ps-wrap input{width:100%;padding:8px 12px 8px 34px;border:1.5px solid var(--BD);border-radius:8px;font-family:var(--f);font-size:13px;color:var(--TX);outline:none;background:var(--BG);transition:.18s;}
+.ps-wrap input:focus{border-color:var(--S);background:white;}
+.ps-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--MT);}
+.ps-ico svg{width:14px;height:14px;fill:var(--MT);}
+
+/* 병원 목록 */
+.gu-sec{}
+.gu-hd{padding:7px 16px 5px;font-size:10.5px;font-weight:700;color:var(--MT);letter-spacing:.5px;text-transform:uppercase;background:var(--BG);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:2;border-bottom:1px solid var(--BD);}
+.gu-cnt{background:rgba(139,155,191,.2);color:var(--MT);font-size:10px;padding:1px 7px;border-radius:10px;}
+.h-item{padding:10px 16px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .13s;border-bottom:1px solid #f0f4fb;}
+.h-item:hover{background:var(--SL);}
+.h-item.on{background:#EEF4FF;border-left:3px solid var(--N);padding-left:13px;}
+.h-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.h-info{flex:1;min-width:0;}
+.h-nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.h-sb{font-size:11.5px;color:var(--MT);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.h-bg{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:600;flex-shrink:0;}
+
+/* 커버리지 패널 */
+.cv-hero{padding:18px 16px;background:linear-gradient(135deg,var(--N2) 0%,var(--N) 100%);text-align:center;}
+.cv-hero-lbl{font-size:11px;color:rgba(255,255,255,.5);font-weight:300;margin-bottom:10px;}
+.cv-nums{display:flex;align-items:center;justify-content:center;gap:18px;}
+.cv-num-box{}
+.cv-pct{font-size:30px;font-weight:700;line-height:1;}
+.cv-nm-lbl{font-size:10.5px;margin-top:4px;font-weight:300;}
+.cv-arrow{font-size:22px;color:var(--S);opacity:.8;}
+.cv-imp{font-size:12px;color:var(--GN);font-weight:700;margin-top:10px;}
+.dist-list{padding:4px 0 8px;}
+.d-row{padding:7px 16px;}
+.d-nm{font-size:12.5px;font-weight:600;margin-bottom:5px;display:flex;justify-content:space-between;}
+.d-delta{font-size:11px;color:var(--GN);font-weight:700;}
+.bar-bg{background:#EAEEf5;border-radius:4px;height:18px;position:relative;overflow:hidden;}
+.b-aft{position:absolute;inset:0;border-radius:4px;background:var(--S);transition:width 1.1s cubic-bezier(.22,1,.36,1);width:0;}
+.b-bef{position:absolute;top:3px;bottom:3px;left:0;border-radius:3px;background:#90A4AE;transition:width .9s cubic-bezier(.22,1,.36,1);width:0;z-index:1;}
+.b-pct{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:700;color:var(--N);z-index:2;}
+
+/* 학생 패널 */
+.st-hero{padding:18px 16px;background:linear-gradient(135deg,var(--N2),var(--N3));text-align:center;}
+.st-cnt{font-size:34px;font-weight:700;color:white;}
+.st-u{font-size:16px;color:var(--S);margin-left:3px;}
+.st-lbl{font-size:11px;color:rgba(255,255,255,.5);margin-top:6px;font-weight:300;}
+.rank-list{padding:8px 0;}
+.rank-row{padding:7px 16px;display:flex;align-items:center;gap:10px;}
+.rank-no{width:22px;height:22px;border-radius:50%;background:var(--BG);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:var(--MT);flex-shrink:0;}
+.rank-no.top{background:var(--AM);color:white;}
+.rank-info{flex:1;min-width:0;}
+.rank-nm{font-size:12.5px;font-weight:600;}
+.rank-bar{height:7px;background:var(--BG);border-radius:4px;margin-top:4px;overflow:hidden;}
+.rank-fill{height:100%;background:linear-gradient(90deg,var(--SD),var(--S));border-radius:4px;transition:width 1s cubic-bezier(.22,1,.36,1);width:0;}
+.rank-pct{font-size:11px;color:var(--GN);font-weight:700;flex-shrink:0;}
+
+/* ── 하단 테이블 ── */
+.bot{flex-shrink:0;background:white;border-top:2px solid var(--N);display:flex;flex-direction:column;height:215px;transition:height .28s;}
+.bot.closed{height:42px;}
+.bot-hd{background:var(--N);height:42px;padding:0 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.bot-ttl{font-size:13px;font-weight:700;color:white;white-space:nowrap;}
+.bot-cnt{font-size:11px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.75);padding:2px 8px;border-radius:10px;}
+.tf-row{display:flex;gap:5px;}
+.tf{padding:3px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:transparent;font-family:var(--f);font-size:11.5px;color:rgba(255,255,255,.65);cursor:pointer;transition:.15s;}
+.tf.on{background:var(--S);border-color:var(--S);color:var(--N);font-weight:700;}
+.bsrch{margin-left:auto;position:relative;}
+.bsrch input{width:175px;padding:5px 10px 5px 27px;border:1px solid rgba(255,255,255,.2);border-radius:7px;background:rgba(255,255,255,.1);font-family:var(--f);font-size:12px;color:white;outline:none;}
+.bsrch input::placeholder{color:rgba(255,255,255,.4);}
+.bsrch input:focus{background:rgba(255,255,255,.18);border-color:var(--S);}
+.bsrch svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);fill:rgba(255,255,255,.45);}
+.bot-tog{margin-left:6px;width:26px;height:26px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.7);font-size:11px;transition:.15s;flex-shrink:0;}
+.bot-tog:hover{background:rgba(255,255,255,.2);}
+.tbl-wrap{flex:1;overflow-y:auto;}
+.tbl-wrap::-webkit-scrollbar{width:4px;}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--BD);border-radius:4px;}
+table{width:100%;border-collapse:collapse;}
+thead th{position:sticky;top:0;background:#F4F7FD;padding:6px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--MT);border-bottom:1px solid var(--BD);cursor:pointer;white-space:nowrap;user-select:none;}
+thead th:hover{color:var(--N);}
+thead th.sa::after{content:' ▲';font-size:9px;}
+thead th.sd::after{content:' ▼';font-size:9px;}
+tbody tr{border-bottom:1px solid #F0F5FB;cursor:pointer;transition:background .1s;}
+tbody tr:hover,tbody tr.on{background:var(--SL);}
+tbody td{padding:6px 12px;font-size:12.5px;color:var(--TX);}
+tbody td:first-child{font-weight:700;}
+.tbg{display:inline-block;font-size:10px;padding:2px 8px;border-radius:8px;font-weight:600;white-space:nowrap;}
+.tbg-d{background:#E8ECF8;color:var(--N);}
+.tbg-n{background:var(--SL);color:var(--SD);}
+
+/* ── 마커 (Kakao CustomOverlay) ── */
+.hm{cursor:pointer;display:flex;flex-direction:column;align-items:center;user-select:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,.25));}
+.hm-body{width:30px;height:30px;border-radius:8px;border:2px solid white;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.hm-body svg{width:15px;height:15px;fill:white;}
+.hm-tail{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;margin-top:-1px;}
+.hm.dal .hm-body{background:var(--N);}
+.hm.dal .hm-tail{border-top:8px solid var(--N);}
+.hm.nw .hm-body{background:var(--SD);}
+.hm.nw .hm-tail{border-top:8px solid var(--SD);}
+.hm.on .hm-body{width:36px;height:36px;border-radius:10px;border-width:2.5px;box-shadow:0 0 0 4px rgba(79,195,247,.35);}
+.hm.on .hm-body svg{width:18px;height:18px;}
+.hm:hover .hm-body{transform:scale(1.1);}
+
+/* ── 팝업 ── */
+.pop{width:290px;background:white;border-radius:14px;box-shadow:0 8px 30px rgba(27,46,94,.18);font-family:var(--f);animation:popIn .2s cubic-bezier(.34,1.56,.64,1);}
+@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.pop-spacer{height:46px;}
+.pop-tail-box{display:flex;justify-content:center;margin-top:-1px;}
+.pop-tail-box::after{content:'';width:12px;height:12px;background:white;clip-path:polygon(0 0,100% 0,50% 100%);}
+.pop-close{position:absolute;top:9px;right:9px;width:24px;height:24px;border-radius:50%;background:var(--BG);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--MT);font-size:14px;transition:.15s;z-index:1;font-family:var(--f);}
+.pop-close:hover{background:var(--BD);}
+.pop-hd{padding:14px 14px 10px;position:relative;}
+.pop-type{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;margin-bottom:6px;}
+.pop-nm{font-size:14px;font-weight:700;color:var(--N);line-height:1.3;padding-right:18px;}
+.pop-bd{padding:0 14px 14px;}
+.pop-row{display:flex;gap:7px;font-size:12px;color:#3A4F6A;margin-bottom:6px;line-height:1.5;}
+.pop-ri{flex-shrink:0;font-size:13px;}
+.pop-tel{color:var(--N);font-weight:700;text-decoration:none;}
+.pop-tel:hover{text-decoration:underline;}
+.pop-div{height:1px;background:var(--BG);margin:8px 0;}
+.pop-sec-t{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--MT);text-transform:uppercase;margin-bottom:5px;}
+.sched-g{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;}
+.sched-c{background:var(--BG);border-radius:5px;padding:4px 6px;font-size:10px;}
+.sched-d{font-weight:700;color:var(--N);}
+.sched-t{color:var(--MT);margin-top:1px;}
+.sc-list{display:flex;flex-direction:column;gap:3px;}
+.sc-it{display:flex;align-items:center;gap:6px;background:var(--BG);border-radius:6px;padding:5px 7px;}
+.sc-nm{font-size:11.5px;font-weight:600;color:var(--N);flex:1;}
+.sc-mt{font-size:10.5px;color:var(--MT);}
+
+/* ── 모바일 ── */
+@media(max-width:900px){.side{width:320px;}}
+@media(max-width:767px){
+  .hdr-chip{display:none;}
+  .hdr-tx h1{font-size:14px;}
+  .kpi-row{flex-wrap:wrap;gap:8px;padding:8px 12px;}
+  .kpi{flex:calc(50% - 4px);}
+  .kpi-val{font-size:18px;}
+  .main{flex-direction:column;}
+  .map-area{height:45vh;}
+  .side{width:100%;border-left:none;border-top:1px solid var(--BD);height:180px;}
+  .side-hd{padding:10px 14px 8px;}
+  .bot{height:180px;}
+  .bot.closed{height:42px;}
+  .bsrch{display:none;}
+}
+@media(max-width:480px){
+  .kpi{flex:calc(50% - 4px);}
+  .kpi-val{font-size:16px;}
+  .kpi-lbl{font-size:10px;}
+  .kpi-ico{width:36px;height:36px;}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-logo">
+    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12h-3v3h-2v-3H8v-2h3V8h2v5h3v2z"/></svg>
+  </div>
+  <div class="hdr-tx">
+    <h1>서울시 달빛어린이병원 입지 최적화 대시보드</h1>
+    <p>P-median 알고리즘 · 초등학교 학생수 가중치 적용 · 2026년 3월 기준</p>
+  </div>
+  <div class="hdr-rt">
+    <div class="hdr-chip">🏫 초등학교 606개</div>
+    <div class="hdr-chip">📊 서울 25개 자치구</div>
+  </div>
+</header>
+
+<div class="kpi-row">
+  <div class="kpi" id="kpi0" onclick="selKpi(0)">
+    <div class="kpi-ico" style="background:rgba(255,255,255,.1);">
+      <svg viewBox="0 0 24 24" fill="#90CAF9"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12h-3v3h-2v-3H8v-2h3V8h2v5h3v2z"/></svg>
+    </div>
+    <div>
+      <div class="kpi-lbl">기존 달빛어린이병원</div>
+      <div class="kpi-val">19<span class="u">개소</span></div>
+      <div class="kpi-sub">서울시 지정 운영 중 · 클릭하여 목록 확인</div>
+    </div>
+  </div>
+  <div class="kpi" id="kpi1" onclick="selKpi(1)">
+    <div class="kpi-ico" style="background:rgba(79,195,247,.18);">
+      <svg viewBox="0 0 24 24" fill="var(--S)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+    </div>
+    <div>
+      <div class="kpi-lbl">신규 추천 후보</div>
+      <div class="kpi-val" style="color:var(--S);">51<span class="u">개소</span></div>
+      <div class="kpi-sub">P-median 알고리즘 선정 · 클릭하여 목록 확인</div>
+    </div>
+  </div>
+  <div class="kpi" id="kpi2" onclick="selKpi(2)">
+    <div class="kpi-ico" style="background:rgba(34,197,94,.15);">
+      <svg viewBox="0 0 24 24" fill="#22C55E"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    </div>
+    <div>
+      <div class="kpi-lbl">면적 커버리지</div>
+      <div class="kpi-val"><span class="dim">31.5%</span><span class="arr">→</span><span style="color:#22C55E;">74.0%</span></div>
+      <div class="kpi-sub">2km 반경 · +42.5%p · 클릭하여 구별 비교</div>
+    </div>
+  </div>
+  <div class="kpi" id="kpi3" onclick="selKpi(3)">
+    <div class="kpi-ico" style="background:rgba(79,195,247,.15);">
+      <svg viewBox="0 0 24 24" fill="var(--S)"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+    </div>
+    <div>
+      <div class="kpi-lbl">신규 커버 초등학생</div>
+      <div class="kpi-val" style="color:var(--S);">+182,416<span class="u">명</span></div>
+      <div class="kpi-sub">접근성 개선 대상 학생 · 클릭하여 구별 현황</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="map-area">
+    <div class="mc">
+      <button class="mc-btn" id="bufBtn" onclick="toggleBuf()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+        <span id="bufTxt">2km 서비스 반경</span>
+      </button>
+    </div>
+    <div id="map"></div>
+    <div class="map-leg">
+      <div class="leg-t">범 례</div>
+      <div class="leg-r"><div class="leg-pin" style="background:var(--N);"></div>기존 달빛어린이병원</div>
+      <div class="leg-r"><div class="leg-pin" style="background:var(--SD);"></div>신규 추천 (P-median)</div>
+      <div class="leg-r" id="legBuf" style="display:none;"><div class="leg-buf-ic"></div>2km 서비스 반경</div>
+    </div>
+  </div>
+
+  <div class="side" id="side">
+    <div class="side-hd" id="sideHd">
+      <div class="side-hd-ico" id="sideIco" style="background:#E8ECF8;">
+        <svg viewBox="0 0 24 24" fill="var(--N)"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      </div>
+      <div>
+        <div class="side-ttl" id="sideTtl">구별 커버율 비교</div>
+        <div class="side-sub" id="sideSub">서울 25개 자치구 · Before → After</div>
+      </div>
+    </div>
+    <div class="side-body" id="sideBody"></div>
+  </div>
+</div>
+
+<div class="bot" id="bot">
+  <div class="bot-hd">
+    <div class="bot-ttl">병원 목록</div>
+    <div class="bot-cnt" id="botCnt">70개</div>
+    <div class="tf-row">
+      <button class="tf on" id="tfA" onclick="setTf('all')">전체</button>
+      <button class="tf" id="tfD" onclick="setTf('dal')">기존달빛</button>
+      <button class="tf" id="tfN" onclick="setTf('new')">신규추천</button>
+    </div>
+    <div class="bsrch">
+      <svg width="13" height="13" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" id="botQ" placeholder="병원명, 구, 진료과목...">
+    </div>
+    <div class="bot-tog" id="botTog" onclick="toggleBot()">▲</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th onclick="tSrt('gu')">자치구</th>
+        <th onclick="tSrt('name')">병원명</th>
+        <th onclick="tSrt('type')">구분</th>
+        <th onclick="tSrt('subject')">진료과목</th>
+        <th onclick="tSrt('tel')">연락처</th>
+        <th>주소</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ══════════ 데이터 ══════════
+const H=[
+{gu:"종로구",name:"일맥한의원 더영의원",address:"서울특별시 종로구 종로 74, 영안빌딩 4층",lat:37.56995,lng:126.985626,type:"신규추천",subject:"내과",tel:"02-722-1854",schedule:{월:"10:00~20:30",화:"10:00~20:30",수:"10:00~20:30",목:"10:00~20:30",금:"10:00~20:30"},nearby_schools:[{name:"서울교동초등학교",students:138,dist:604},{name:"운현초등학교",students:162,dist:774},{name:"서울덕수초등학교",students:368,dist:973}]},
+{gu:"중구",name:"365온(ON)가정의원",address:"서울특별시 중구 왕십리로 407, B1층 2호",lat:37.564623,lng:127.024648,type:"기존달빛",subject:"달빛어린이병원",tel:"02-6212-0365",schedule:{},nearby_schools:[{name:"서울신당초등학교",students:292,dist:143},{name:"서울숭신초등학교",students:757,dist:455},{name:"서울무학초등학교",students:368,dist:468}]},
+{gu:"중구",name:"남대문명동정형외과의원",address:"서울특별시 중구 퇴계로 36, 삼선빌딩 2층",lat:37.557309,lng:126.977051,type:"신규추천",subject:"가정의학과",tel:"02-779-8176",schedule:{월:"08:30~21:00",화:"08:30~19:00",수:"08:30~19:00",목:"08:30~21:00",금:"08:30~19:00",토:"08:30~13:00"},nearby_schools:[{name:"서울후암초등학교",students:227,dist:778},{name:"서울남산초등학교",students:190,dist:902},{name:"숭의초등학교",students:512,dist:923}]},
+{gu:"중구",name:"우미의원",address:"서울특별시 중구 명동7길 13, 명동증권빌딩 2층",lat:37.564356,lng:126.983983,type:"신규추천",subject:"가정의학과/내과",tel:"02-778-0188",schedule:{월:"10:30~21:00",화:"10:30~21:00",수:"10:30~21:00",목:"10:30~21:00",금:"10:30~21:00",토:"10:00~17:00"},nearby_schools:[{name:"서울남산초등학교",students:190,dist:564},{name:"숭의초등학교",students:512,dist:784},{name:"리라초등학교",students:492,dist:807}]},
+{gu:"용산구",name:"티아이피재활의학과의원",address:"서울특별시 용산구 이촌로64길 24",lat:37.520009,lng:126.969866,type:"신규추천",subject:"내과",tel:"02-6959-8228",schedule:{월:"09:30~21:00",화:"09:30~19:00",수:"09:30~21:00",목:"09:30~19:00",토:"09:00~15:00"},nearby_schools:[{name:"서울신용산초등학교",students:1282,dist:491},{name:"서울한강초등학교",students:171,dist:716},{name:"서울흑석초등학교",students:378,dist:1366}]},
+{gu:"성동구",name:"365다움의원",address:"서울특별시 성동구 왕십리광장로 17, 4층",lat:37.561409,lng:127.038481,type:"기존달빛",subject:"달빛어린이병원",tel:"02-2297-1755",schedule:{},nearby_schools:[{name:"서울행당초등학교",students:662,dist:582},{name:"서울동명초등학교",students:182,dist:802},{name:"서울마장초등학교",students:403,dist:804}]},
+{gu:"성동구",name:"아이들소아청소년과의원",address:"서울특별시 성동구 고산자로 234, 4층",lat:37.560539,lng:127.035272,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-2298-0144",schedule:{월:"09:00~21:00",화:"09:30~21:00",수:"09:30~21:00",목:"09:30~21:00",금:"09:30~21:00",토:"09:30~18:00"},nearby_schools:[{name:"서울행당초등학교",students:662,dist:392},{name:"서울무학초등학교",students:368,dist:580},{name:"서울행현초등학교",students:525,dist:614}]},
+{gu:"성동구",name:"금호탑정형외과의원",address:"서울특별시 성동구 동호로 102, 6층",lat:37.548892,lng:127.016432,type:"신규추천",subject:"내과",tel:"02-6085-0075",schedule:{월:"09:00~19:00",화:"09:00~21:00",수:"09:00~19:00",목:"09:00~21:00",금:"09:00~19:00",토:"09:00~14:00"},nearby_schools:[{name:"서울금옥초등학교",students:273,dist:322},{name:"서울금호초등학교",students:519,dist:507},{name:"서울옥수초등학교",students:471,dist:608}]},
+{gu:"광진구",name:"24시열린의원",address:"서울특별시 광진구 능동로 90, 3층",lat:37.538630,lng:127.070972,type:"기존달빛",subject:"달빛어린이병원",tel:"02-455-2475",schedule:{},nearby_schools:[{name:"서울자양초등학교",students:621,dist:350},{name:"서울구의초등학교",students:843,dist:680},{name:"서울자양제2초등학교",students:412,dist:820}]},
+{gu:"광진구",name:"유앤장이비인후과의원",address:"서울특별시 광진구 천호대로 653",lat:37.55285,lng:127.089668,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-447-0077",schedule:{월:"09:00~20:00",화:"09:00~20:00",수:"09:00~20:00",목:"09:00~20:00",금:"09:00~20:00",토:"09:00~16:00"},nearby_schools:[{name:"경복초등학교",students:731,dist:422},{name:"서울광진초등학교",students:511,dist:618},{name:"서울용마초등학교",students:818,dist:774}]},
+{gu:"광진구",name:"365류마고내과의원",address:"서울특별시 광진구 광나루로56길 63",lat:37.536789,lng:127.096161,type:"신규추천",subject:"내과/소아청소년과",tel:"02-458-7588",schedule:{월:"09:00~22:00",화:"09:00~22:00",수:"09:00~22:00",목:"09:00~22:00",금:"09:00~22:00",토:"09:00~18:00"},nearby_schools:[{name:"서울구남초등학교",students:663,dist:368},{name:"서울광남초등학교",students:1236,dist:563},{name:"성동초등학교",students:682,dist:722}]},
+{gu:"동대문구",name:"하늘병원",address:"서울특별시 동대문구 천호대로 317",lat:37.565184,lng:127.055648,type:"신규추천",subject:"가정의학과/내과",tel:"02-2246-8750",schedule:{월:"08:30~20:00",화:"08:30~20:00",수:"08:30~20:00",목:"08:30~20:00",금:"08:30~20:00",토:"09:00~15:00"},nearby_schools:[{name:"서울답십리초등학교",students:782,dist:403},{name:"서울군자초등학교",students:251,dist:447},{name:"서울용답초등학교",students:165,dist:521}]},
+{gu:"동대문구",name:"이문연합의원",address:"서울특별시 동대문구 휘경로3길 4, 2층",lat:37.595803,lng:127.062501,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-968-8575",schedule:{월:"09:00~21:00",화:"09:00~21:00",수:"09:00~21:00",목:"09:00~21:00",금:"09:00~21:00",토:"09:00~16:00"},nearby_schools:[{name:"서울청량초등학교",students:614,dist:699},{name:"경희초등학교",students:683,dist:703},{name:"서울이문초등학교",students:751,dist:708}]},
+{gu:"동대문구",name:"예쁜나의원",address:"서울특별시 동대문구 왕산로 185, 2층",lat:37.580096,lng:127.043795,type:"신규추천",subject:"가정의학과",tel:"02-969-8875",schedule:{월:"10:00~21:00",화:"10:00~18:00",목:"10:00~18:00",금:"10:00~21:00",토:"09:00~17:00"},nearby_schools:[{name:"서울홍파초등학교",students:197,dist:778},{name:"서울신답초등학교",students:550,dist:823},{name:"서울전곡초등학교",students:219,dist:1081}]},
+{gu:"중랑구",name:"키즈웰소아청소년과의원",address:"서울특별시 중랑구 동일로 932",lat:37.613852,lng:127.077578,type:"기존달빛",subject:"달빛어린이병원",tel:"02-972-7975",schedule:{},nearby_schools:[{name:"서울공릉초등학교",students:263,dist:589},{name:"서울묵현초등학교",students:443,dist:635},{name:"서울신묵초등학교",students:274,dist:827}]},
+{gu:"중랑구",name:"대들보정형외과의원",address:"서울특별시 중랑구 망우로 403, 삼부빌딩 2층",lat:37.599422,lng:127.096853,type:"신규추천",subject:"내과",tel:"02-496-0011",schedule:{월:"09:00~18:00",화:"09:00~20:00",수:"09:00~18:00",목:"09:00~20:00",금:"09:00~18:00",토:"09:00~14:00"},nearby_schools:[{name:"서울중화초등학교",students:931,dist:459},{name:"서울망우초등학교",students:276,dist:621},{name:"서울신내초등학교",students:529,dist:677}]},
+{gu:"중랑구",name:"플러스내과의원",address:"서울특별시 중랑구 봉화산로 39, 3·4층",lat:37.601747,lng:127.078629,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-6952-7731",schedule:{월:"09:00~20:00",화:"09:00~18:00",수:"09:00~18:00",목:"09:00~20:00",금:"09:00~18:00",토:"09:00~14:00"},nearby_schools:[{name:"서울묵동초등학교",students:315,dist:264},{name:"서울중흥초등학교",students:235,dist:495},{name:"서울상봉초등학교",students:500,dist:579}]},
+{gu:"성북구",name:"성북우리아이들병원",address:"서울특별시 성북구 동소문로46길 10",lat:37.606863,lng:127.029359,type:"기존달빛",subject:"달빛어린이병원",tel:"02-912-0100",schedule:{},nearby_schools:[{name:"서울숭곡초등학교",students:637,dist:352},{name:"서울개운초등학교",students:559,dist:593},{name:"서울미아초등학교",students:1091,dist:796}]},
+{gu:"성북구",name:"올바른마취통증의학과의원",address:"서울특별시 성북구 화랑로 245, 2·3층",lat:37.610895,lng:127.056554,type:"신규추천",subject:"가정의학과",tel:"02-943-8274",schedule:{월:"09:00~20:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~20:00",금:"09:00~19:00",토:"09:00~14:00"},nearby_schools:[{name:"서울석관초등학교",students:558,dist:159},{name:"서울장위초등학교",students:373,dist:581},{name:"서울선곡초등학교",students:570,dist:872}]},
+{gu:"성북구",name:"성북성심신경과의원",address:"서울특별시 성북구 동소문로 181",lat:37.598387,lng:127.021453,type:"신규추천",subject:"내과/소아청소년과",tel:"02-927-5100",schedule:{월:"18:00~24:00",화:"18:00~24:00",수:"18:00~24:00",목:"18:00~24:00",금:"18:00~24:00",토:"13:00~24:00"},nearby_schools:[{name:"매원초등학교",students:499,dist:215},{name:"성신초등학교",students:498,dist:443},{name:"서울개운초등학교",students:559,dist:653}]},
+{gu:"강북구",name:"미래소아청소년과의원",address:"서울특별시 강북구 삼양로 247, 3층",lat:37.625518,lng:127.017747,type:"신규추천",subject:"내과/소아청소년과",tel:"02-987-7015",schedule:{월:"10:00~21:00",화:"10:00~21:00",수:"10:00~21:00",목:"10:00~21:00",금:"10:00~21:00",토:"10:00~18:00"},nearby_schools:[{name:"서울삼양초등학교",students:441,dist:292},{name:"서울미양초등학교",students:335,dist:545},{name:"서울수유초등학교",students:518,dist:675}]},
+{gu:"강북구",name:"설정형외과의원",address:"서울특별시 강북구 도봉로 52, 7층",lat:37.613723,lng:127.030527,type:"신규추천",subject:"내과",tel:"02-6312-6300",schedule:{월:"09:00~19:00",화:"09:00~19:00",수:"09:00~21:00",목:"09:00~19:00",금:"09:00~19:00",토:"09:00~14:00"},nearby_schools:[{name:"영훈초등학교",students:677,dist:240},{name:"서울송중초등학교",students:608,dist:436},{name:"서울송천초등학교",students:402,dist:614}]},
+{gu:"강북구",name:"수유바로본의원",address:"서울특별시 강북구 도봉로 308, 4층",lat:37.635664,lng:127.023835,type:"신규추천",subject:"가정의학과/내과",tel:"02-991-7511",schedule:{월:"09:00~20:00",화:"09:00~18:30",수:"09:00~18:30",목:"09:00~20:00",금:"09:00~18:30",토:"09:00~13:00"},nearby_schools:[{name:"서울수유초등학교",students:518,dist:581},{name:"서울수송초등학교",students:458,dist:824},{name:"서울우이초등학교",students:883,dist:837}]},
+{gu:"도봉구",name:"신창기독의원",address:"서울특별시 도봉구 우이천로4길 42",lat:37.634044,lng:127.041701,type:"신규추천",subject:"내과/소아청소년과",tel:"02-907-9234",schedule:{월:"09:00~21:00",화:"09:00~21:00",수:"09:00~21:00",목:"09:00~21:00",금:"09:00~21:00"},nearby_schools:[{name:"서울신화초등학교",students:312,dist:118},{name:"서울신창초등학교",students:217,dist:279},{name:"서울번동초등학교",students:417,dist:580}]},
+{gu:"도봉구",name:"서현내과의원",address:"서울특별시 도봉구 덕릉로 222, 2층",lat:37.637809,lng:127.037644,type:"신규추천",subject:"내과/소아청소년과",tel:"02-995-2527",schedule:{월:"09:00~20:00",화:"09:00~20:00",수:"09:00~20:00",목:"09:00~20:00",금:"09:00~20:00",토:"09:00~15:00"},nearby_schools:[{name:"서울신창초등학교",students:217,dist:417},{name:"서울수송초등학교",students:458,dist:419},{name:"서울신화초등학교",students:312,dist:586}]},
+{gu:"노원구",name:"미즈아이프라자산부인과의원",address:"서울특별시 노원구 동일로 1669",lat:37.677449,lng:127.054931,type:"기존달빛",subject:"달빛어린이병원",tel:"02-931-5224",schedule:{},nearby_schools:[{name:"서울노일초등학교",students:401,dist:410},{name:"서울노원초등학교",students:220,dist:529},{name:"서울수락초등학교",students:384,dist:783}]},
+{gu:"노원구",name:"우리의원",address:"서울특별시 노원구 상계로27길 7, 2·3·4층",lat:37.658919,lng:127.070596,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-989-2800",schedule:{월:"09:00~18:00",화:"09:00~20:00",수:"09:00~18:00",목:"09:00~20:00",금:"09:00~18:00",토:"09:00~15:00"},nearby_schools:[{name:"서울중계초등학교",students:739,dist:267},{name:"서울상계초등학교",students:202,dist:370},{name:"서울계상초등학교",students:328,dist:401}]},
+{gu:"노원구",name:"퀸스메디소아청소년과의원",address:"서울특별시 노원구 동일로 1059",lat:37.624533,lng:127.072984,type:"신규추천",subject:"내과/소아청소년과",tel:"02-948-7599",schedule:{월:"09:00~20:00",화:"09:00~20:00",수:"09:00~20:00",목:"09:00~20:00",금:"09:00~20:00",토:"09:00~16:00"},nearby_schools:[{name:"서울공연초등학교",students:388,dist:360},{name:"서울한천초등학교",students:588,dist:538},{name:"서울공릉초등학교",students:263,dist:672}]},
+{gu:"은평구",name:"은평센트럴소아청소년과의원",address:"서울특별시 은평구 통일로 1050, 롯데몰 4층",lat:37.637537,lng:126.9179,type:"기존달빛",subject:"달빛어린이병원",tel:"02-6975-5259",schedule:{},nearby_schools:[{name:"서울은진초등학교",students:518,dist:542},{name:"서울은빛초등학교",students:444,dist:578},{name:"서울신도초등학교",students:795,dist:1123}]},
+{gu:"은평구",name:"연세사랑의원",address:"서울특별시 은평구 응암로22길 28-6, 3층",lat:37.593288,lng:126.921076,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-375-7585",schedule:{월:"09:00~20:00",화:"09:00~20:00",수:"09:00~20:00",목:"09:00~19:00",금:"09:00~20:00",토:"09:00~15:00"},nearby_schools:[{name:"서울연은초등학교",students:656,dist:446},{name:"서울응암초등학교",students:782,dist:505},{name:"서울은명초등학교",students:1009,dist:573}]},
+{gu:"은평구",name:"살림의원",address:"서울특별시 은평구 서오릉로 149, 2층",lat:37.611608,lng:126.916228,type:"신규추천",subject:"가정의학과",tel:"02-6014-9949",schedule:{월:"09:00~18:00",화:"09:00~20:00",수:"09:00~18:00",목:"09:00~18:00",금:"09:00~18:00",토:"09:00~14:00"},nearby_schools:[{name:"예일초등학교",students:468,dist:146},{name:"서울대조초등학교",students:640,dist:349},{name:"서울구산초등학교",students:704,dist:618}]},
+{gu:"서대문구",name:"연세365의원",address:"서울특별시 서대문구 통일로 397, 305호",lat:37.58525,lng:126.947307,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-733-1365",schedule:{월:"08:00~21:00",화:"08:00~21:00",수:"08:00~21:00",목:"08:00~21:00",금:"08:00~21:00",토:"08:00~19:00"},nearby_schools:[{name:"서울고은초등학교",students:341,dist:296},{name:"서울인왕초등학교",students:512,dist:594},{name:"서울안산초등학교",students:556,dist:802}]},
+{gu:"서대문구",name:"에보스의원",address:"서울특별시 서대문구 서소문로 21, 충정타워 2층",lat:37.5599,lng:126.964101,type:"신규추천",subject:"내과",tel:"02-363-2664",schedule:{월:"06:00~22:30",화:"06:00~17:30",수:"06:00~22:30",목:"06:00~17:30",금:"06:00~22:30",토:"06:00~16:30"},nearby_schools:[{name:"서울봉래초등학교",students:393,dist:400},{name:"서울미동초등학교",students:246,dist:409},{name:"경기초등학교",students:578,dist:592}]},
+{gu:"서대문구",name:"라온비뇨의학과의원",address:"서울특별시 서대문구 연세로 10-1, 11층",lat:37.5565,lng:126.937142,type:"신규추천",subject:"내과",tel:"02-365-5671",schedule:{월:"09:00~21:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~19:00",금:"09:00~19:00",토:"09:00~16:00"},nearby_schools:[{name:"서울창천초등학교",students:139,dist:266},{name:"서울창서초등학교",students:164,dist:371},{name:"이화여대부속초등학교",students:624,dist:732}]},
+{gu:"마포구",name:"24시열린의원",address:"서울특별시 마포구 월드컵북로 396, 누리꿈스퀘어",lat:37.579342,lng:126.889819,type:"기존달빛",subject:"달빛어린이병원",tel:"02-455-2475",schedule:{},nearby_schools:[{name:"서울상암초등학교",students:435,dist:383},{name:"서울상지초등학교",students:497,dist:706},{name:"서울수색초등학교",students:671,dist:846}]},
+{gu:"마포구",name:"이멀스의원",address:"서울특별시 마포구 백범로 205, 지하2층",lat:37.543335,lng:126.953799,type:"신규추천",subject:"가정의학과",tel:"02-6953-6831",schedule:{월:"10:00~20:00",화:"10:00~20:00",수:"10:00~14:00",목:"10:00~20:00",금:"10:00~20:00",토:"10:00~16:00"},nearby_schools:[{name:"서울공덕초등학교",students:678,dist:289},{name:"서울마포초등학교",students:653,dist:629},{name:"서울염리초등학교",students:1319,dist:694}]},
+{gu:"마포구",name:"마포엄지척정형외과의원",address:"서울특별시 마포구 월드컵로 79, 5층",lat:37.555954,lng:126.909853,type:"신규추천",subject:"가정의학과",tel:"02-332-7588",schedule:{월:"09:00~20:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~20:00",금:"09:00~20:00",토:"09:00~14:00"},nearby_schools:[{name:"서울성산초등학교",students:568,dist:316},{name:"홍익대부속초등학교",students:476,dist:492},{name:"서울성서초등학교",students:393,dist:524}]},
+{gu:"양천구",name:"24시열린의원",address:"서울특별시 양천구 목동동로 233-1, 109호",lat:37.527512,lng:126.871549,type:"기존달빛",subject:"달빛어린이병원",tel:"02-2643-2475",schedule:{},nearby_schools:[{name:"서울목운초등학교",students:1640,dist:280},{name:"서울목동초등학교",students:1356,dist:540},{name:"서울서정초등학교",students:831,dist:720}]},
+{gu:"양천구",name:"연세365소아청소년과의원",address:"서울특별시 양천구 신월로 282, 2층",lat:37.521069,lng:126.852174,type:"신규추천",subject:"소아청소년과",tel:"02-2699-0365",schedule:{월:"09:00~21:00",화:"09:00~21:00",수:"09:00~21:00",목:"09:00~21:00",금:"09:00~21:00",토:"09:00~14:00"},nearby_schools:[{name:"서울양강초등학교",students:478,dist:522},{name:"서울양동초등학교",students:294,dist:537},{name:"서울남명초등학교",students:435,dist:621}]},
+{gu:"양천구",name:"뷰다임의원",address:"서울특별시 양천구 목동서로 159-1, 3층",lat:37.528308,lng:126.874876,type:"신규추천",subject:"가정의학과/내과",tel:"02-2643-1333",schedule:{월:"10:00~19:00",화:"10:00~21:00",수:"10:00~19:00",목:"10:00~19:00",금:"10:00~19:00",토:"10:00~15:00"},nearby_schools:[{name:"서울목운초등학교",students:1640,dist:217},{name:"서울목동초등학교",students:1356,dist:658},{name:"서울서정초등학교",students:831,dist:864}]},
+{gu:"강서구",name:"강서푸름꿈성모어린이병원",address:"서울특별시 강서구 공항대로41길 34, 3층",lat:37.559284,lng:126.84573,type:"기존달빛",subject:"달빛어린이병원",tel:"02-3665-0823",schedule:{},nearby_schools:[{name:"서울등현초등학교",students:460,dist:287},{name:"서울등명초등학교",students:64,dist:345},{name:"서울등원초등학교",students:134,dist:387}]},
+{gu:"강서구",name:"연세의원",address:"서울특별시 강서구 화곡로 197, 1·2층",lat:37.543357,lng:126.842655,type:"기존달빛",subject:"달빛어린이병원",tel:"02-2601-3433",schedule:{},nearby_schools:[{name:"서울화곡초등학교",students:567,dist:339},{name:"서울신월초등학교",students:569,dist:436},{name:"서울화일초등학교",students:565,dist:517}]},
+{gu:"강서구",name:"더화이트의원",address:"서울특별시 강서구 강서로 242, 306호",lat:37.547385,lng:126.836763,type:"신규추천",subject:"가정의학과",tel:"02-2065-2301",schedule:{월:"10:00~19:00",화:"10:00~21:00",수:"10:00~19:00",목:"10:00~21:00",금:"10:00~19:00",토:"10:00~16:00"},nearby_schools:[{name:"서울내발산초등학교",students:1077,dist:407},{name:"서울발산초등학교",students:885,dist:612},{name:"서울신월초등학교",students:569,dist:814}]},
+{gu:"구로구",name:"우리아이들병원",address:"서울특별시 구로구 새말로 15, 2~10층",lat:37.502137,lng:126.88244,type:"기존달빛",subject:"달빛어린이병원",tel:"02-858-0100",schedule:{},nearby_schools:[{name:"서울미래초등학교",students:428,dist:598},{name:"서울신미림초등학교",students:785,dist:611},{name:"서울구로초등학교",students:364,dist:624}]},
+{gu:"구로구",name:"365더튼튼의원",address:"서울특별시 구로구 경인로 191, 2·3층",lat:37.495643,lng:126.842327,type:"신규추천",subject:"내과/소아청소년과",tel:"02-2060-9111",schedule:{월:"10:00~21:00",화:"10:00~21:00",수:"10:00~21:00",목:"10:00~21:00",금:"10:00~21:00",토:"09:00~17:00"},nearby_schools:[{name:"서울오류초등학교",students:548,dist:211},{name:"서울오류남초등학교",students:519,dist:719},{name:"서울개웅초등학교",students:391,dist:1038}]},
+{gu:"구로구",name:"신도림퍼스트정형외과의원",address:"서울특별시 구로구 경인로63길 11, 2층",lat:37.507708,lng:126.885207,type:"신규추천",subject:"가정의학과/내과",tel:"02-2677-5566",schedule:{월:"09:00~20:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~20:00",금:"09:00~19:00",토:"09:00~13:00"},nearby_schools:[{name:"서울미래초등학교",students:428,dist:384},{name:"서울신미림초등학교",students:785,dist:503},{name:"서울신도림초등학교",students:1102,dist:505}]},
+{gu:"금천구",name:"큰사랑의원",address:"서울특별시 금천구 범안로 1183",lat:37.466699,lng:126.893111,type:"신규추천",subject:"내과/소아청소년과",tel:"02-893-2322",schedule:{월:"08:30~20:00",화:"08:30~20:00",수:"08:30~20:00",목:"08:30~20:00",금:"08:30~20:00",토:"08:30~15:00"},nearby_schools:[{name:"서울두산초등학교",students:531,dist:213},{name:"서울독산초등학교",students:453,dist:595},{name:"서울안천초등학교",students:177,dist:976}]},
+{gu:"금천구",name:"이루탄메디케어의원",address:"서울특별시 금천구 디지털로10길 37, 2층",lat:37.476742,lng:126.889772,type:"신규추천",subject:"가정의학과/내과",tel:"1533-2575",schedule:{월:"07:00~21:00",화:"07:00~21:00",수:"07:00~21:00",목:"07:00~21:00",금:"07:00~21:00",토:"07:00~13:00"},nearby_schools:[{name:"서울가산초등학교",students:259,dist:608},{name:"서울문성초등학교",students:346,dist:855},{name:"서울구로남초등학교",students:359,dist:882}]},
+{gu:"금천구",name:"에스본의원",address:"서울특별시 금천구 남부순환로 1372, 6~8층",lat:37.479459,lng:126.903473,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-838-5888",schedule:{월:"09:00~19:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~20:00",금:"09:00~19:00",토:"09:00~13:00"},nearby_schools:[{name:"서울문성초등학교",students:346,dist:624},{name:"서울영남초등학교",students:178,dist:628},{name:"서울가산초등학교",students:259,dist:641}]},
+{gu:"영등포구",name:"서울삼육오의원",address:"서울특별시 영등포구 영중로 119, 2층",lat:37.526861,lng:126.905166,type:"기존달빛",subject:"달빛어린이병원",tel:"02-2069-3650",schedule:{},nearby_schools:[{name:"서울영동초등학교",students:361,dist:225},{name:"서울영중초등학교",students:361,dist:329},{name:"서울당서초등학교",students:1144,dist:743}]},
+{gu:"영등포구",name:"삼성의원",address:"서울특별시 영등포구 당산로36길 12",lat:37.528085,lng:126.898428,type:"신규추천",subject:"내과",tel:"02-2671-7582",schedule:{월:"09:00~19:00",화:"09:00~19:00",수:"09:00~20:00",목:"09:00~19:00",금:"09:00~19:00",토:"09:00~13:30"},nearby_schools:[{name:"서울당서초등학교",students:1144,dist:454},{name:"서울영중초등학교",students:361,dist:639},{name:"서울선유초등학교",students:279,dist:731}]},
+{gu:"영등포구",name:"서울사랑내과의원",address:"서울특별시 영등포구 영등포로 367, 3층",lat:37.514452,lng:126.919257,type:"신규추천",subject:"내과",tel:"02-845-5665",schedule:{월:"08:00~18:00",화:"08:00~18:00",수:"08:00~18:00",목:"08:00~20:00",금:"08:00~18:00",토:"08:00~14:00"},nearby_schools:[{name:"서울영신초등학교",students:779,dist:485},{name:"서울윤중초등학교",students:385,dist:646},{name:"서울신길초등학교",students:785,dist:770}]},
+{gu:"동작구",name:"세원소아청소년과의원",address:"서울특별시 동작구 사당로 215, 304호",lat:37.484448,lng:126.972335,type:"신규추천",subject:"내과/소아청소년과",tel:"02-533-5661",schedule:{월:"09:00~18:00",화:"09:00~18:00",수:"09:00~20:00",금:"09:00~18:00",토:"09:00~13:00"},nearby_schools:[{name:"서울남성초등학교",students:435,dist:297},{name:"서울삼일초등학교",students:781,dist:492},{name:"서울남사초등학교",students:419,dist:591}]},
+{gu:"동작구",name:"서울김내과의원",address:"서울특별시 동작구 장승배기로 34, 4층",lat:37.501156,lng:126.94158,type:"신규추천",subject:"내과/소아청소년과",tel:"02-813-7582",schedule:{월:"09:00~18:00",화:"09:00~18:00",수:"14:00~21:00",목:"09:00~18:00",금:"09:00~18:00",토:"09:00~13:00"},nearby_schools:[{name:"서울신상도초등학교",students:1187,dist:283},{name:"서울상도초등학교",students:714,dist:380},{name:"서울영화초등학교",students:335,dist:1155}]},
+{gu:"동작구",name:"하얀의원",address:"서울특별시 동작구 여의대방로 142, 4층",lat:37.49968,lng:126.920671,type:"신규추천",subject:"가정의학과",tel:"02-822-5857",schedule:{월:"10:00~18:30",화:"12:30~20:30",수:"10:00~18:30",목:"10:00~18:30",금:"12:30~20:30",토:"08:30~13:30"},nearby_schools:[{name:"서울대방초등학교",students:1319,dist:386},{name:"서울대림초등학교",students:859,dist:386},{name:"서울보라매초등학교",students:1125,dist:584}]},
+{gu:"관악구",name:"명소아청소년과의원",address:"서울특별시 관악구 양녕로 50, 5층",lat:37.486463,lng:126.947221,type:"신규추천",subject:"소아청소년과",tel:"02-882-3668",schedule:{월:"08:00~21:00",화:"08:00~21:00",수:"08:00~21:00",목:"08:00~21:00",금:"08:00~21:00",토:"08:00~15:00"},nearby_schools:[{name:"서울신봉초등학교",students:204,dist:211},{name:"서울구암초등학교",students:1261,dist:317},{name:"서울은천초등학교",students:768,dist:402}]},
+{gu:"관악구",name:"고려정형외과의원",address:"서울특별시 관악구 남부순환로 1952, 2·3층",lat:37.475968,lng:126.96568,type:"신규추천",subject:"내과",tel:"02-878-7553",schedule:{월:"09:00~20:00",화:"09:00~19:00",수:"09:00~19:00",목:"09:00~20:00",금:"09:00~19:00",토:"09:00~13:00"},nearby_schools:[{name:"서울인헌초등학교",students:651,dist:522},{name:"서울행림초등학교",students:165,dist:693},{name:"서울사당초등학교",students:421,dist:715}]},
+{gu:"관악구",name:"아이랑소아청소년과의원",address:"서울특별시 관악구 난곡로 210, 2층",lat:37.473744,lng:126.91855,type:"신규추천",subject:"내과/소아청소년과",tel:"02-868-8683",schedule:{월:"08:00~20:00",화:"08:00~20:00",수:"08:00~20:00",목:"08:00~20:00",금:"08:00~20:00",토:"09:00~17:00"},nearby_schools:[{name:"서울난우초등학교",students:543,dist:401},{name:"서울난곡초등학교",students:235,dist:548},{name:"서울미성초등학교",students:599,dist:746}]},
+{gu:"서초구",name:"기쁨병원",address:"서울특별시 서초구 서초중앙로 4",lat:37.482716,lng:127.018081,type:"기존달빛",subject:"달빛어린이병원",tel:"02-570-1234",schedule:{},nearby_schools:[{name:"서울서일초등학교",students:423,dist:461},{name:"서울신중초등학교",students:763,dist:823},{name:"서울교대부설초등학교",students:608,dist:921}]},
+{gu:"서초구",name:"연세곰돌이소아청소년과의원",address:"서울특별시 서초구 방배로 226, 3층",lat:37.49338,lng:126.990464,type:"기존달빛",subject:"달빛어린이병원",tel:"02-596-4585",schedule:{},nearby_schools:[{name:"서울서래초등학교",students:1154,dist:336},{name:"서울방배초등학교",students:707,dist:791},{name:"서울잠원초등학교",students:1912,dist:1144}]},
+{gu:"서초구",name:"강남연세재활의학과의원",address:"서울특별시 서초구 서초중앙로 230, 5층",lat:37.502169,lng:127.012078,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-3478-0216",schedule:{월:"09:00~20:30",화:"09:00~20:30",수:"09:00~20:30",목:"09:00~20:30",금:"09:00~20:30",토:"09:00~14:00"},nearby_schools:[{name:"서울서원초등학교",students:1639,dist:227},{name:"서울원명초등학교",students:1147,dist:437},{name:"서울원촌초등학교",students:1051,dist:440}]},
+{gu:"강남구",name:"세곡달빛의원",address:"서울특별시 강남구 헌릉로569길 27, 2층",lat:37.466811,lng:127.098777,type:"기존달빛",subject:"달빛어린이병원",tel:"02-459-0119",schedule:{},nearby_schools:[{name:"서울자곡초등학교",students:529,dist:629},{name:"서울대왕초등학교",students:430,dist:649},{name:"서울세명초등학교",students:620,dist:718}]},
+{gu:"강남구",name:"연세도우리소아청소년과의원",address:"서울특별시 강남구 삼성로 14 자이스퀘어",lat:37.485109,lng:127.071606,type:"기존달빛",subject:"달빛어린이병원",tel:"02-459-2024",schedule:{},nearby_schools:[{name:"서울개포초등학교",students:880,dist:221},{name:"서울양전초등학교",students:273,dist:620},{name:"서울일원초등학교",students:1398,dist:672}]},
+{gu:"강남구",name:"지아인의원",address:"서울특별시 강남구 도곡로 419, 6층",lat:37.497678,lng:127.056332,type:"신규추천",subject:"내과",tel:"02-575-2233",schedule:{월:"09:30~20:30",화:"09:30~19:00",수:"09:30~20:30",목:"09:30~19:00",금:"09:30~20:30",토:"09:30~15:00"},nearby_schools:[{name:"서울도곡초등학교",students:896,dist:262},{name:"서울대도초등학교",students:1990,dist:561},{name:"서울도성초등학교",students:1719,dist:782}]},
+{gu:"송파구",name:"송파365의원",address:"서울특별시 송파구 송파대로 111",lat:37.480509,lng:127.123261,type:"기존달빛",subject:"달빛어린이병원",tel:"02-448-7582",schedule:{},nearby_schools:[{name:"서울문덕초등학교",students:457,dist:671},{name:"서울문현초등학교",students:692,dist:701},{name:"서울문정초등학교",students:743,dist:1052}]},
+{gu:"송파구",name:"하이엔소아청소년과의원",address:"서울특별시 송파구 위례북로1길 22, 3·4층",lat:37.488343,lng:127.149358,type:"기존달빛",subject:"달빛어린이병원",tel:"02-6475-0001",schedule:{},nearby_schools:[{name:"서울위례솔초등학교",students:1084,dist:222},{name:"서울거원초등학교",students:546,dist:420},{name:"서울마천초등학교",students:621,dist:845}]},
+{gu:"송파구",name:"봄날내과의원",address:"서울특별시 송파구 오금로32길 35",lat:37.503248,lng:127.119037,type:"신규추천",subject:"가정의학과/내과/소아청소년과",tel:"02-6015-2222",schedule:{월:"09:30~18:30",화:"09:30~20:00",목:"09:30~18:30",금:"09:30~20:00",토:"09:30~14:00"},nearby_schools:[{name:"서울신가초등학교",students:536,dist:323},{name:"서울중대초등학교",students:999,dist:640},{name:"서울방산초등학교",students:588,dist:724}]},
+{gu:"강동구",name:"서울베스트재활의학과의원",address:"서울특별시 강동구 양재대로 1661, 5·6층",lat:37.553855,lng:127.143965,type:"신규추천",subject:"내과",tel:"02-426-3400",schedule:{월:"09:00~20:00",화:"09:00~20:00",수:"09:00~20:00",목:"09:00~20:00",금:"09:00~20:00",토:"09:00~14:00"},nearby_schools:[{name:"서울명일초등학교",students:872,dist:144},{name:"서울고명초등학교",students:830,dist:322},{name:"서울명덕초등학교",students:1651,dist:337}]},
+{gu:"강동구",name:"슬로아의원",address:"서울특별시 강동구 고덕비즈밸리로 38, 2·3층",lat:37.566271,lng:127.159622,type:"신규추천",subject:"가정의학과",tel:"02-427-2325",schedule:{월:"10:00~20:00",화:"10:00~20:00",수:"10:00~20:00",목:"10:00~20:00",금:"10:00~20:00",토:"10:00~16:00"},nearby_schools:[{name:"서울강덕초등학교",students:1152,dist:750},{name:"서울고덕초등학교",students:663,dist:793},{name:"서울묘곡초등학교",students:1393,dist:1018}]},
+{gu:"강동구",name:"다인정형외과의원",address:"서울특별시 강동구 양재대로 1377, 308~310호",lat:37.529224,lng:127.136275,type:"신규추천",subject:"내과/소아청소년과",tel:"02-486-5550",schedule:{월:"09:00~19:00",화:"09:00~21:00",수:"09:00~19:00",목:"09:00~21:00",금:"09:00~19:00",토:"09:00~13:00"},nearby_schools:[{name:"서울둔촌초등학교",students:999,dist:347},{name:"서울한산초등학교",students:590,dist:428},{name:"서울성일초등학교",students:861,dist:697}]}
+];
+
+const GUS=['종로구','중구','용산구','성동구','광진구','동대문구','중랑구','성북구','강북구','도봉구','노원구','은평구','서대문구','마포구','양천구','강서구','구로구','금천구','영등포구','동작구','관악구','서초구','강남구','송파구','강동구'];
+const BEF=[5,45,8,38,32,3,28,35,4,5,30,33,6,36,40,55,38,3,42,4,5,50,48,45,3];
+const AFT=[65,85,62,78,72,70,75,80,68,65,70,74,72,76,82,85,78,68,80,70,72,88,85,82,68];
+
+// ══════════ 카카오맵 ══════════
+let kmap,selIdx=null,bufOn=false,bufArr=[],ovArr=[],curPop=null;
+let covChart=null,studChart=null;
+
+const GU_CENTER={
+  '종로구':{lat:37.5910,lng:126.9769},'중구':{lat:37.5638,lng:126.9975},
+  '용산구':{lat:37.5326,lng:126.9907},'성동구':{lat:37.5635,lng:127.0368},
+  '광진구':{lat:37.5384,lng:127.0824},'동대문구':{lat:37.5744,lng:127.0397},
+  '중랑구':{lat:37.6063,lng:127.0925},'성북구':{lat:37.5894,lng:127.0167},
+  '강북구':{lat:37.6396,lng:127.0255},'도봉구':{lat:37.6688,lng:127.0471},
+  '노원구':{lat:37.6543,lng:127.0564},'은평구':{lat:37.6177,lng:126.9227},
+  '서대문구':{lat:37.5791,lng:126.9368},'마포구':{lat:37.5663,lng:126.9014},
+  '양천구':{lat:37.5271,lng:126.8560},'강서구':{lat:37.5509,lng:126.8495},
+  '구로구':{lat:37.4954,lng:126.8874},'금천구':{lat:37.4607,lng:126.9001},
+  '영등포구':{lat:37.5263,lng:126.8960},'동작구':{lat:37.5124,lng:126.9393},
+  '관악구':{lat:37.4784,lng:126.9516},'서초구':{lat:37.4836,lng:127.0323},
+  '강남구':{lat:37.5172,lng:127.0473},'송파구':{lat:37.5145,lng:127.1059},
+  '강동구':{lat:37.5301,lng:127.1238}
+};
+
+function navigateToGu(gu){
+  const c=GU_CENTER[gu];
+  if(c&&kmap){kmap.panTo(new kakao.maps.LatLng(c.lat,c.lng));kmap.setLevel(5);}
+}
+
+const SVG_CROSS=`<svg viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`;
+const SVG_STAR=`<svg viewBox="0 0 24 24" fill="white"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+
+kakao.maps.load(function(){
+  kmap=new kakao.maps.Map(document.getElementById('map'),{
+    center:new kakao.maps.LatLng(37.5502,126.982),
+    level:7
+  });
+  kakao.maps.event.addListener(kmap,'click',closePop);
+  H.forEach((h,i)=>{
+    const el=document.createElement('div');
+    const dal=h.type==='기존달빛';
+    el.className=`hm ${dal?'dal':'nw'}`;
+    el.innerHTML=`<div class="hm-body">${dal?SVG_STAR:SVG_CROSS}</div><div class="hm-tail"></div>`;
+    el.addEventListener('click',e=>{e.stopPropagation();selHosp(i);});
+    const ov=new kakao.maps.CustomOverlay({
+      position:new kakao.maps.LatLng(h.lat,h.lng),
+      content:el,yAnchor:1,zIndex:3
+    });
+    ov.setMap(kmap);
+    ovArr.push({ov,el});
+  });
+});
+
+function toggleBuf(){
+  bufOn=!bufOn;
+  const btn=document.getElementById('bufBtn');
+  document.getElementById('legBuf').style.display=bufOn?'flex':'none';
+  btn.classList.toggle('on',bufOn);
+  document.getElementById('bufTxt').textContent=bufOn?'2km 반경 숨기기':'2km 서비스 반경';
+  if(bufOn){
+    H.forEach(h=>{
+      const c=new kakao.maps.Circle({
+        center:new kakao.maps.LatLng(h.lat,h.lng),radius:2000,
+        strokeWeight:1.5,strokeColor:h.type==='기존달빛'?'#1B2E5E':'#0288D1',
+        strokeOpacity:.35,fillColor:h.type==='기존달빛'?'#1B2E5E':'#4FC3F7',fillOpacity:.07
+      });
+      c.setMap(kmap);bufArr.push(c);
+    });
+  } else {
+    bufArr.forEach(c=>c.setMap(null));bufArr=[];
+  }
+}
+
+function buildPop(h){
+  const dal=h.type==='기존달빛';
+  const col=dal?'#1B2E5E':'#0288D1';
+  const bg=dal?'#E8ECF8':'#E1F5FE';
+  const days=Object.keys(h.schedule||{});
+  const sched=days.length
+    ?`<div class="pop-sec-t">진료시간</div><div class="sched-g">${days.map(d=>`<div class="sched-c"><div class="sched-d">${d}</div><div class="sched-t">${h.schedule[d]}</div></div>`).join('')}</div>`
+    :`<div class="pop-sec-t">진료시간</div><div style="font-size:12px;color:var(--MT);">야간 진료 운영 (달빛어린이병원 지정)</div>`;
+  const schools=(h.nearby_schools||[]).map(s=>`<div class="sc-it"><span style="font-size:13px">🏫</span><span class="sc-nm">${s.name}</span><span class="sc-mt">${s.students.toLocaleString()}명</span><span class="sc-mt">${(s.dist/1000).toFixed(1)}km</span></div>`).join('');
+  return `<div style="position:relative;">
+    <div class="pop">
+      <button class="pop-close" onclick="closePop()">✕</button>
+      <div class="pop-hd">
+        <div class="pop-type" style="background:${bg};color:${col};">${dal?'⭐ 기존달빛':'💡 신규추천'}</div>
+        <div class="pop-nm">${h.name}</div>
+      </div>
+      <div class="pop-bd">
+        <div class="pop-row"><span class="pop-ri">📍</span><span style="font-size:11.5px;">${h.address}</span></div>
+        ${h.tel?`<div class="pop-row"><span class="pop-ri">📞</span><a class="pop-tel" href="tel:${h.tel}">${h.tel}</a></div>`:''}
+        <div class="pop-div"></div>
+        ${sched}
+        <div class="pop-div"></div>
+        <div class="pop-sec-t">인근 초등학교</div>
+        <div class="sc-list">${schools}</div>
+      </div>
+    </div>
+    <div class="pop-tail-box"></div>
+    <div class="pop-spacer"></div>
+  </div>`;
+}
+
+function closePop(){
+  if(curPop){curPop.setMap(null);curPop=null;}
+}
+
+function selHosp(idx){
+  if(selIdx!==null) ovArr[selIdx].el.classList.remove('on');
+  selIdx=idx;
+  ovArr[idx].el.classList.add('on');
+  const h=H[idx];
+  closePop();
+  curPop=new kakao.maps.CustomOverlay({
+    position:new kakao.maps.LatLng(h.lat,h.lng),
+    content:buildPop(h),yAnchor:1,zIndex:10
+  });
+  curPop.setMap(kmap);
+  kmap.panTo(new kakao.maps.LatLng(h.lat,h.lng));
+  document.querySelectorAll('#tbody tr').forEach(r=>r.classList.remove('on'));
+  const tr=document.querySelector(`#tbody tr[data-i="${idx}"]`);
+  if(tr){tr.classList.add('on');tr.scrollIntoView({block:'nearest'});}
+  document.querySelectorAll('.h-item').forEach(e=>e.classList.remove('on'));
+  const pi=document.querySelector(`.h-item[data-i="${idx}"]`);
+  if(pi){pi.classList.add('on');pi.scrollIntoView({block:'nearest'});}
+}
+
+// ══════════ KPI 패널 ══════════
+let activeKpi=-1;
+
+function selKpi(n){
+  const same=activeKpi===n;
+  document.querySelectorAll('.kpi').forEach(k=>k.classList.remove('on'));
+  if(same){activeKpi=-1;renderCovPanel(false);return;}
+  activeKpi=n;
+  document.getElementById('kpi'+n).classList.add('on');
+  if(n===0)renderList('기존달빛');
+  else if(n===1)renderList('신규추천');
+  else if(n===2)renderCovPanel(true);
+  else renderStudPanel();
+}
+
+function setPanel(ttl,sub,icoBg,icoFill,borderCol){
+  document.getElementById('sideTtl').textContent=ttl;
+  document.getElementById('sideSub').textContent=sub;
+  document.getElementById('sideIco').style.background=icoBg;
+  document.getElementById('sideIco').querySelector('svg').style.fill=icoFill;
+  document.getElementById('sideHd').style.borderBottomColor=borderCol;
+}
+
+function renderList(type){
+  const dal=type==='기존달빛';
+  setPanel(
+    dal?'기존 달빛어린이병원 19개소':'신규 추천 후보 51개소',
+    dal?'현재 서울시 지정·운영 중인 달빛어린이병원':'P-median 알고리즘 선정 후보 병원',
+    dal?'#E8ECF8':'#E1F5FE', dal?'#1B2E5E':'#0288D1', dal?'#1B2E5E':'#0288D1'
+  );
+  function render(q=''){
+    const filtered=H.map((h,i)=>({...h,i})).filter(h=>h.type===type&&(!q||h.name.includes(q)||h.gu.includes(q)));
+    const grp={};
+    filtered.forEach(h=>{if(!grp[h.gu])grp[h.gu]=[];grp[h.gu].push(h);});
+    let html=`<div class="ps"><div class="ps-wrap"><div class="ps-ico"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></div><input type="text" placeholder="병원명·구 검색..." value="${q}" style="width:100%;padding:8px 12px 8px 34px;border:1.5px solid var(--BD);border-radius:8px;font-family:var(--f);font-size:13px;outline:none;background:var(--BG);" id="listQ"></div></div>`;
+    Object.entries(grp).forEach(([gu,items])=>{
+      html+=`<div class="gu-sec"><div class="gu-hd"><span>${gu}</span><span class="gu-cnt">${items.length}</span></div>`;
+      items.forEach(h=>{
+        html+=`<div class="h-item ${selIdx===h.i?'on':''}" data-i="${h.i}" onclick="selHosp(${h.i})">
+          <div class="h-dot" style="background:${dal?'var(--N)':'var(--SD)'};"></div>
+          <div class="h-info"><div class="h-nm">${h.name}</div><div class="h-sb">${h.subject==='달빛어린이병원'?'달빛어린이병원 지정':h.subject} · ${h.tel||'-'}</div></div>
+          <span class="h-bg" style="background:${dal?'#E8ECF8':'var(--SL)'};color:${dal?'var(--N)':'var(--SD)'};">${dal?'달빛':'신규'}</span>
+        </div>`;
+      });
+      html+=`</div>`;
+    });
+    if(!filtered.length)html+=`<div style="padding:30px;text-align:center;color:var(--MT);font-size:13px;">검색 결과가 없습니다</div>`;
+    document.getElementById('sideBody').innerHTML=html;
+    const inp=document.getElementById('listQ');
+    if(inp)inp.addEventListener('input',e=>render(e.target.value.trim()));
+  }
+  render();
+}
+
+function renderCovPanel(enableBuf){
+  setPanel('구별 커버리지 Before → After','서울 25개 자치구 · 2km 반경 학생 커버율 비교','#E8F5E9','#22C55E','#22C55E');
+  if(enableBuf&&!bufOn)toggleBuf();
+  const html=`<div class="cv-hero">
+    <div class="cv-hero-lbl">서울시 전체 커버리지</div>
+    <div class="cv-nums">
+      <div class="cv-num-box"><div class="cv-pct" style="color:#90A4AE;">31.5%</div><div class="cv-nm-lbl" style="color:rgba(255,255,255,.5);">현재 (Before)</div></div>
+      <div class="cv-arrow">→</div>
+      <div class="cv-num-box"><div class="cv-pct" style="color:#4FC3F7;">74.0%</div><div class="cv-nm-lbl" style="color:rgba(255,255,255,.75);">추천 후 (After)</div></div>
+    </div>
+    <div class="cv-imp">▲ +42.5%p 향상 · 신규 커버 학생 +182,416명</div>
+  </div>
+  <div style="padding:6px 14px 4px;font-size:11px;color:var(--MT);">막대 클릭 시 해당 구로 지도 이동</div>
+  <div style="padding:0 10px 12px;height:530px;position:relative;">
+    <canvas id="covChart"></canvas>
+  </div>`;
+  document.getElementById('sideBody').innerHTML=html;
+  if(covChart)covChart.destroy();
+  const ctx=document.getElementById('covChart').getContext('2d');
+  const font={family:"'GMS','Apple SD Gothic Neo','Malgun Gothic',sans-serif",size:10.5};
+  covChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:GUS,
+      datasets:[
+        {label:'현재 (%)',data:BEF,backgroundColor:'rgba(144,164,174,0.45)',borderColor:'rgba(144,164,174,0.7)',borderWidth:1,borderRadius:2},
+        {label:'추천 후 (%)',data:AFT,backgroundColor:'rgba(79,195,247,0.6)',borderColor:'rgba(2,136,209,0.8)',borderWidth:1,borderRadius:2}
+      ]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      animation:{duration:900,easing:'easeOutQuart'},
+      plugins:{
+        legend:{position:'top',align:'start',labels:{font,boxWidth:12,padding:10}},
+        tooltip:{callbacks:{
+          title:items=>`${items[0].label}`,
+          label:item=>`${item.dataset.label}: ${item.raw}%`,
+          afterBody:items=>{
+            const bef=items.find(i=>i.datasetIndex===0);
+            const aft=items.find(i=>i.datasetIndex===1);
+            return(bef&&aft)?[`개선: +${aft.raw-bef.raw}%p`]:[];
+          }
+        }}
+      },
+      scales:{
+        x:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+        y:{ticks:{font,color:'#1B2E5E'}}
+      },
+      onClick:(evt,els)=>{if(els.length>0)navigateToGu(GUS[els[0].index]);}
+    }
+  });
+}
+
+function renderStudPanel(){
+  setPanel('신규 커버 초등학생 현황','달빛어린이병원 지정 시 접근성 개선 효과','#E1F5FE','#0288D1','var(--S)');
+  const sorted=GUS.map((g,i)=>({g,d:AFT[i]-BEF[i],aft:AFT[i],bef:BEF[i]})).sort((a,b)=>b.d-a.d);
+  const html=`<div class="st-hero">
+    <div style="font-size:12px;color:rgba(255,255,255,.5);font-weight:300;margin-bottom:8px;">신규 커버 초등학생 수</div>
+    <div><span class="st-cnt" id="stC">0</span><span class="st-u">명</span></div>
+    <div class="st-lbl">달빛어린이병원 신규 지정 후 2km 반경 진입 학생</div>
+  </div>
+  <div style="padding:6px 14px 4px;font-size:11px;color:var(--MT);">막대 클릭 시 지도 이동 · 상위 3개 구 강조</div>
+  <div style="padding:0 10px 12px;height:530px;position:relative;">
+    <canvas id="studChart"></canvas>
+  </div>`;
+  document.getElementById('sideBody').innerHTML=html;
+  cntUp('stC',182416,1600);
+  if(studChart)studChart.destroy();
+  const ctx=document.getElementById('studChart').getContext('2d');
+  const font={family:"'GMS','Apple SD Gothic Neo','Malgun Gothic',sans-serif",size:10.5};
+  const bgColors=sorted.map((_,i)=>i<3?'rgba(245,158,11,0.7)':'rgba(79,195,247,0.55)');
+  const bdColors=sorted.map((_,i)=>i<3?'rgba(245,158,11,0.9)':'rgba(2,136,209,0.7)');
+  studChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:sorted.map(r=>r.g),
+      datasets:[{label:'커버율 향상(%p)',data:sorted.map(r=>r.d),backgroundColor:bgColors,borderColor:bdColors,borderWidth:1,borderRadius:2}]
+    },
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      animation:{duration:900,easing:'easeOutQuart'},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:items=>`${items[0].label}`,
+          label:item=>`커버율 향상: +${item.raw}%p`,
+          afterBody:([item])=>[`현재: ${sorted[item.dataIndex].bef}% → 추천 후: ${sorted[item.dataIndex].aft}%`]
+        }}
+      },
+      scales:{
+        x:{ticks:{callback:v=>'+'+v+'%p',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+        y:{ticks:{font,color:'#1B2E5E'}}
+      },
+      onClick:(evt,els)=>{if(els.length>0)navigateToGu(sorted[els[0].index].g);}
+    }
+  });
+}
+
+function cntUp(id,target,ms){
+  const el=document.getElementById(id);if(!el)return;
+  const s=performance.now();
+  const f=now=>{const t=Math.min((now-s)/ms,1),e=t<.5?2*t*t:(4-2*t)*t-1;
+    el.textContent=Math.floor(e*target).toLocaleString();if(t<1)requestAnimationFrame(f);};
+  requestAnimationFrame(f);
+}
+
+// ══════════ 테이블 ══════════
+let tf='all',sC='gu',sD='asc',botClosed=false;
+
+function setTf(f){
+  tf=f;['tfA','tfD','tfN'].forEach(id=>document.getElementById(id).classList.remove('on'));
+  document.getElementById(f==='all'?'tfA':f==='dal'?'tfD':'tfN').classList.add('on');
+  renderTbl();
+}
+function tSrt(col){
+  sD=sC===col?(sD==='asc'?'desc':'asc'):'asc';sC=col;
+  document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sa','sd'));
+  const ci=['gu','name','type','subject','tel'].indexOf(col);
+  if(ci>=0)document.querySelectorAll('thead th')[ci].classList.add(sD==='asc'?'sa':'sd');
+  renderTbl();
+}
+function toggleBot(){
+  botClosed=!botClosed;
+  document.getElementById('bot').classList.toggle('closed',botClosed);
+  document.getElementById('botTog').textContent=botClosed?'▼':'▲';
+}
+function renderTbl(){
+  const q=document.getElementById('botQ').value.trim().toLowerCase();
+  let data=H.map((h,i)=>({...h,i})).filter(h=>{
+    const t=tf==='all'||(tf==='dal'&&h.type==='기존달빛')||(tf==='new'&&h.type==='신규추천');
+    const s=!q||h.name.toLowerCase().includes(q)||h.gu.includes(q)||h.subject.toLowerCase().includes(q)||h.address.toLowerCase().includes(q);
+    return t&&s;
+  }).sort((a,b)=>{
+    const av=(a[sC]||'').toLowerCase(),bv=(b[sC]||'').toLowerCase();
+    return sD==='asc'?av.localeCompare(bv,'ko'):bv.localeCompare(av,'ko');
+  });
+  document.getElementById('botCnt').textContent=data.length+'개';
+  document.getElementById('tbody').innerHTML=data.map(h=>`
+    <tr data-i="${h.i}" onclick="selHosp(${h.i})" class="${selIdx===h.i?'on':''}">
+      <td>${h.gu}</td><td>${h.name}</td>
+      <td><span class="tbg ${h.type==='기존달빛'?'tbg-d':'tbg-n'}">${h.type==='기존달빛'?'⭐ 기존달빛':'💡 신규추천'}</span></td>
+      <td>${h.subject}</td><td>${h.tel||'-'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--MT);font-size:11.5px;">${h.address}</td>
+    </tr>`).join('');
+}
+document.getElementById('botQ').addEventListener('input',renderTbl);
+
+// ══════════ 초기화 ══════════
+renderTbl();
+renderCovPanel(false);
+</script>
+</body>
+</html>
